@@ -13,7 +13,7 @@ rnv8_versions=("0.66.3-patch.1" "0.66.3-patch.1")
 for index in {0..1};
 do
   yarn add react-native@"${versions[$index]}"
-  for js_runtime in "v8";
+  for js_runtime in "jsc" "v8"
   do
     echo "js_runtime=${js_runtime}"
 
