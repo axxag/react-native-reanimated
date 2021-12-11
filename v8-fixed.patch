@@ -325,3 +325,18 @@ index 63919fe94..bb0001b29 100644
      "react-native-codegen": "^0.0.7",
      "react-native-gesture-handler": "^1.6.1",
      "react-test-renderer": "17.0.2",
+diff --git a/android/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.java b/android/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.java
+index b72de2575..1defb16ad 100644
+--- a/android/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.java
++++ b/android/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.java
+@@ -504,6 +504,9 @@ public class AnimationsManager implements ViewHierarchyObserver {
+   }
+ 
+   public boolean isLayoutAnimationEnabled() {
+-    return mNativeMethodsHolder.isLayoutAnimationEnabled();
++    if (mNativeMethodsHolder != null) {
++      return mNativeMethodsHolder.isLayoutAnimationEnabled();
++    }
++    return false;    
+   }
+ }

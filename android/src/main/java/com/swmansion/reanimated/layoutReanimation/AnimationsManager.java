@@ -504,6 +504,9 @@ public class AnimationsManager implements ViewHierarchyObserver {
   }
 
   public boolean isLayoutAnimationEnabled() {
-    return mNativeMethodsHolder.isLayoutAnimationEnabled();
+    if (mNativeMethodsHolder != null) {
+      return mNativeMethodsHolder.isLayoutAnimationEnabled();
+    }
+    return false;
   }
 }
