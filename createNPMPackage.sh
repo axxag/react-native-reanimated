@@ -6,19 +6,21 @@ ROOT=$(pwd)
 
 unset CI
 
-versions=("0.67.0-rc.4" "0.66.3" "0.65.1" "0.64.3" "0.63.3")
-version_name=("67" "66" "65" "64" "63")
+versions=("0.67.0-rc.5" "0.66.3")
+version_name=("67" "66")
+rnv8_versions=("0.66.3-patch.1" "0.66.3-patch.1")
 
-for index in {0..4}
+for index in {0..1};
 do
   yarn add react-native@"${versions[$index]}"
-  for for_hermes in "True" "False"
+  for js_runtime in "v8";
   do
-    engine="jsc"
-    if [ "$for_hermes" == "True" ]; then
-      engine="hermes"
+    echo "js_runtime=${js_runtime}"
+
+    if [ "${js_runtime}" == "v8" ]; then
+      yarn add react-native-v8@"${rnv8_versions[$index]}"
+      sed -i 's/jsi\/v8runtime/v8runtime/g' node_modules/react-native-v8/src/v8runtime/V8RuntimeFactory.h
     fi
-    echo "engine=${engine}"
 
     cd android 
 
@@ -43,7 +45,7 @@ do
 
     ./gradlew clean
 
-    FOR_HERMES=${for_hermes} ./gradlew :assembleDebug
+    JS_RUNTIME=${js_runtime} ./gradlew :assembleDebug
 
     cd ./rnVersionPatch/$versionNumber
     if [ $(find . | grep 'java') ];
@@ -60,8 +62,11 @@ do
 
     cd $ROOT
 
-    rm -rf android-npm/react-native-reanimated-"${version_name[$index]}-${engine}".aar
-    cp android/build/outputs/aar/*.aar android-npm/react-native-reanimated-"${version_name[$index]}-${engine}".aar
+    rm -rf android-npm/react-native-reanimated-"${version_name[$index]}-${js_runtime}".aar
+    cp android/build/outputs/aar/*.aar android-npm/react-native-reanimated-"${version_name[$index]}-${js_runtime}".aar
+    if [ "${js_runtime}" == "v8" ]; then
+      yarn remove react-native-v8
+    fi
   done
 done
 
@@ -76,7 +81,7 @@ rm -r $(find . ! -name '.' ! -name 'jni' -maxdepth 1)
 rm $(find . -name '*libc++_shared.so')
 cd ../..
 
-yarn add react-native@0.67.0-rc.4 --dev
+yarn add react-native@0.67.0-rc.5 --dev
 
 mv android android-temp
 mv android-npm android

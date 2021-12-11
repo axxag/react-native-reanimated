@@ -1,0 +1,327 @@
+diff --git a/.github/workflows/build-npm-package.yml b/.github/workflows/build-npm-package.yml
+index ac0faf826..e1f3bcfb7 100644
+--- a/.github/workflows/build-npm-package.yml
++++ b/.github/workflows/build-npm-package.yml
+@@ -1,8 +1,7 @@
+ name: Build npm package
+ 
+ on:
+-  schedule:
+-    - cron: '0 12 */1 * *'
++  workflow_dispatch:
+ 
+ jobs:
+   build:
+diff --git a/android-npm/build.gradle b/android-npm/build.gradle
+index 794d95bad..5b4d8dd3c 100644
+--- a/android-npm/build.gradle
++++ b/android-npm/build.gradle
+@@ -8,7 +8,7 @@ def json = new JsonSlurper().parseText(inputFile.text)
+ def reactNativeVersion = json.version as String
+ def (major, minor, patch) = reactNativeVersion.tokenize('.')
+ 
+-def engine = "jsc"
++def js_runtime = "jsc"
+ 
+ abstract class replaceSoTask extends DefaultTask {
+     public static String appName = ":app"
+@@ -53,9 +53,11 @@ if(Integer.parseInt(minor) < 65) {
+ rootProject.getSubprojects().forEach({project ->
+     if (project.plugins.hasPlugin("com.android.application")) {
+         if(project.ext.react.enableHermes) {
+-            engine = "hermes"
++            js_runtime = "hermes"
+         }
+-
++        if (project.configurations.implementation.getDependencies().find { dep -> dep.name == "v8-android" }) {
++            js_runtime = "v8"
++         }
+         if(project.getProperties().get("android") && Integer.parseInt(minor) < 65) {
+             def projectProperties = project.getProperties()
+             final NOTFOUND = "NOT-FOUND"
+@@ -84,11 +86,11 @@ rootProject.getSubprojects().forEach({project ->
+ })
+ 
+ def minorCopy = Integer.parseInt(minor)
+-def aar = file("react-native-reanimated-${minorCopy}-${engine}.aar")
++def aar = file("react-native-reanimated-${minorCopy}-${js_runtime}.aar")
+ 
+ while (!aar.exists()) {
+     minorCopy -= 1
+-    aar = file("react-native-reanimated-${minorCopy}-${engine}.aar")
++    aar = file("react-native-reanimated-${minorCopy}-${js_runtime}.aar")
+     if (minorCopy < 63) {
+       throw new GradleException('No aar for react-native-reanimated found.')
+     }
+diff --git a/android/CMakeLists.txt b/android/CMakeLists.txt
+index 91250c4bf..abfd28b64 100644
+--- a/android/CMakeLists.txt
++++ b/android/CMakeLists.txt
+@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5.1)
+ 
+ set (CMAKE_VERBOSE_MAKEFILE ON)
+ set (CMAKE_CXX_STANDARD 14)
+-set (CMAKE_CXX_FLAGS "-DFOLLY_NO_CONFIG=1 -DFOLLY_HAVE_CLOCK_GETTIME=1 -DFOLLY_HAVE_MEMRCHR=1 -DFOLLY_USE_LIBCPP=1 -DFOLLY_MOBILE=1 -DON_ANDROID -DONANDROID -DFOR_HERMES=${FOR_HERMES} -fexceptions -fno-omit-frame-pointer -frtti -Wno-sign-compare")
++set (CMAKE_CXX_FLAGS "-DFOLLY_NO_CONFIG=1 -DFOLLY_HAVE_CLOCK_GETTIME=1 -DFOLLY_HAVE_MEMRCHR=1 -DFOLLY_USE_LIBCPP=1 -DFOLLY_MOBILE=1 -DON_ANDROID -DONANDROID -fexceptions -fno-omit-frame-pointer -frtti -Wno-sign-compare")
+ 
+ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+@@ -99,6 +99,12 @@ find_library(
+         PATHS ${HERMES_DIR}
+         NO_CMAKE_FIND_ROOT_PATH
+ )
++find_library(
++        V8EXECUTOR_LIB
++        v8executor
++        PATHS ${LIBRN_DIR}
++        NO_CMAKE_FIND_ROOT_PATH
++)
+ find_library(
+         JSEXECUTOR_LIB
+         jscexecutor
+@@ -141,9 +147,9 @@ endif()
+ 
+ set_target_properties(${PACKAGE_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+ 
+-message(WARNING "CMakeLists.txt FOR_HERMES=${FOR_HERMES}")
++message(WARNING "CMakeLists.txt JS_RUNTIME=${JS_RUNTIME}")
+ 
+-if(${FOR_HERMES})
++if(${JS_RUNTIME} STREQUAL "hermes")
+     target_link_libraries(
+             ${PACKAGE_NAME}
+             ${LOG_LIB}
+@@ -155,6 +161,26 @@ if(${FOR_HERMES})
+             ${REACT_NATIVE_JNI_LIB}
+             android
+     )
++    string(APPEND CMAKE_CXX_FLAGS " -DJS_RUNTIME_HERMES=1")
++elseif(${JS_RUNTIME} STREQUAL "v8")
++    target_link_libraries(
++            ${PACKAGE_NAME}
++            ${LOG_LIB}
++            ${JSI_LIB}
++            ${V8EXECUTOR_LIB}
++            ${GLOG_LIB}
++            fbjni::fbjni
++            ${FOLLY_JSON_LIB}
++            ${REACT_NATIVE_JNI_LIB}
++            android
++    )
++target_include_directories(
++        ${PACKAGE_NAME}
++        PRIVATE
++        "${NODE_MODULES_DIR}/react-native-v8/src"
++)
++
++    string(APPEND CMAKE_CXX_FLAGS " -DJS_RUNTIME_V8=1")
+ else()
+     target_link_libraries(
+             ${PACKAGE_NAME}
+@@ -167,6 +193,7 @@ else()
+             ${REACT_NATIVE_JNI_LIB}
+             android
+     )
++    string(APPEND CMAKE_CXX_FLAGS " -DJS_RUNTIME_JSC=1")
+ endif()
+ 
+ if(${REACT_NATIVE_TARGET_VERSION} LESS 64)
+diff --git a/android/build.gradle b/android/build.gradle
+index 85d6e1078..8dff30cea 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -33,13 +33,11 @@ def reactNativeThirdParty = new File("$reactNative/ReactAndroid/src/main/jni/thi
+ def HOME = System.getProperty("user.home")
+ 
+ def _stackProtectorFlag = true;
+-def FOR_HERMES = "";
+-if(findProject(':app')) {
+-    FOR_HERMES = project(':app').ext.react.enableHermes;
+-}
+-else {
+-    FOR_HERMES = System.getenv("FOR_HERMES") == "True";
+-}
++def JS_RUNTIME = System.getenv("JS_RUNTIME") ?: "jsc";
++if (findProject(':app') && project(':app').ext.react.enableHermes) {
++    JS_RUNTIME = "hermes";
++ }
++
+ // You need to have following folders in this directory:
+ //   - boost_1_63_0
+ //   - double-conversion-1.1.6
+@@ -107,7 +105,7 @@ android {
+                              "-DREACT_NATIVE_TARGET_VERSION=${REACT_VERSION}",
+                              "-DANDROID_TOOLCHAIN=clang",
+                              "-DBOOST_VERSION=${BOOST_VERSION}",
+-                             "-DFOR_HERMES=${FOR_HERMES}"
++                             "-DJS_RUNTIME=${JS_RUNTIME}"
+                 abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+                 _stackProtectorFlag ? (cppFlags("-fstack-protector-all")) : null
+             }
+@@ -470,6 +468,10 @@ dependencies {
+     extractSO("com.facebook.fbjni:fbjni:" + FBJNI_VERSION)
+ 
+     def rnAAR = fileTree("${rootDir}/../node_modules/react-native/android").matching({ it.include "**/**/*.aar" }).singleFile
++    if (JS_RUNTIME == "v8") {
++        rnAAR = fileTree("${rootDir}/../node_modules/react-native-v8/dist").matching({ it.include "**/**/*.aar" }).singleFile
++    }
++
+     def jscAAR = fileTree("${rootDir}/../node_modules/jsc-android/dist/org/webkit/android-jsc").matching({ it.include "**/**/*.aar" }).singleFile
+     extractSO(files(rnAAR, jscAAR))
+ }
+diff --git a/android/src/main/cpp/NativeProxy.cpp b/android/src/main/cpp/NativeProxy.cpp
+index 8320c03cf..2218f5456 100644
+--- a/android/src/main/cpp/NativeProxy.cpp
++++ b/android/src/main/cpp/NativeProxy.cpp
+@@ -7,8 +7,11 @@
+ #include <memory>
+ #include <string>
+ 
+-#if FOR_HERMES
++#if JS_RUNTIME_HERMES
+ #include <hermes/hermes.h>
++#elif JS_RUNTIME_V8
++#include <v8runtime/V8RuntimeConfig.h>
++#include <v8runtime/V8RuntimeFactory.h>
+ #else
+ #include <jsi/JSCRuntime.h>
+ #endif
+@@ -121,9 +124,13 @@ void NativeProxy::installJSIBindings() {
+     setGestureState(handlerTag, newState);
+   };
+ 
+-#if FOR_HERMES
++#if JS_RUNTIME_HERMES
+   std::shared_ptr<jsi::Runtime> animatedRuntime =
+       facebook::hermes::makeHermesRuntime();
++#elif JS_RUNTIME_V8
++  facebook::V8RuntimeConfig config;
++  std::shared_ptr<jsi::Runtime> animatedRuntime =
++      facebook::createV8Runtime(config);
+ #else
+   std::shared_ptr<jsi::Runtime> animatedRuntime =
+       facebook::jsc::makeJSCRuntime();
+diff --git a/android/src/main/java/com/swmansion/reanimated/NativeProxy.java b/android/src/main/java/com/swmansion/reanimated/NativeProxy.java
+index e9f8dd228..43a80fe01 100644
+--- a/android/src/main/java/com/swmansion/reanimated/NativeProxy.java
++++ b/android/src/main/java/com/swmansion/reanimated/NativeProxy.java
+@@ -195,7 +195,10 @@ public class NativeProxy {
+ 
+           @Override
+           public boolean isLayoutAnimationEnabled() {
+-            return LayoutAnimations.isLayoutAnimationEnabled();
++            if (LayoutAnimations != null) {
++              return LayoutAnimations.isLayoutAnimationEnabled();
++            }
++            return false;
+           }
+         });
+   }
+diff --git a/createNPMPackage.sh b/createNPMPackage.sh
+index af65a490d..27b21558a 100755
+--- a/createNPMPackage.sh
++++ b/createNPMPackage.sh
+@@ -6,19 +6,21 @@ ROOT=$(pwd)
+ 
+ unset CI
+ 
+-versions=("0.67.0-rc.4" "0.66.3" "0.65.1" "0.64.3" "0.63.3")
+-version_name=("67" "66" "65" "64" "63")
++versions=("0.67.0-rc.5" "0.66.3")
++version_name=("67" "66")
++rnv8_versions=("0.66.3-patch.1" "0.66.3-patch.1")
+ 
+-for index in {0..4}
++for index in {0..1};
+ do
+   yarn add react-native@"${versions[$index]}"
+-  for for_hermes in "True" "False"
++  for js_runtime in "v8";
+   do
+-    engine="jsc"
+-    if [ "$for_hermes" == "True" ]; then
+-      engine="hermes"
++    echo "js_runtime=${js_runtime}"
++
++    if [ "${js_runtime}" == "v8" ]; then
++      yarn add react-native-v8@"${rnv8_versions[$index]}"
++      sed -i 's/jsi\/v8runtime/v8runtime/g' node_modules/react-native-v8/src/v8runtime/V8RuntimeFactory.h
+     fi
+-    echo "engine=${engine}"
+ 
+     cd android 
+ 
+@@ -43,7 +45,7 @@ do
+ 
+     ./gradlew clean
+ 
+-    FOR_HERMES=${for_hermes} ./gradlew :assembleDebug
++    JS_RUNTIME=${js_runtime} ./gradlew :assembleDebug
+ 
+     cd ./rnVersionPatch/$versionNumber
+     if [ $(find . | grep 'java') ];
+@@ -60,8 +62,11 @@ do
+ 
+     cd $ROOT
+ 
+-    rm -rf android-npm/react-native-reanimated-"${version_name[$index]}-${engine}".aar
+-    cp android/build/outputs/aar/*.aar android-npm/react-native-reanimated-"${version_name[$index]}-${engine}".aar
++    rm -rf android-npm/react-native-reanimated-"${version_name[$index]}-${js_runtime}".aar
++    cp android/build/outputs/aar/*.aar android-npm/react-native-reanimated-"${version_name[$index]}-${js_runtime}".aar
++    if [ "${js_runtime}" == "v8" ]; then
++      yarn remove react-native-v8
++    fi
+   done
+ done
+ 
+@@ -76,7 +81,7 @@ rm -r $(find . ! -name '.' ! -name 'jni' -maxdepth 1)
+ rm $(find . -name '*libc++_shared.so')
+ cd ../..
+ 
+-yarn add react-native@0.67.0-rc.4 --dev
++yarn add react-native@0.67.0-rc.5 --dev
+ 
+ mv android android-temp
+ mv android-npm android
+diff --git a/package.json b/package.json
+index 63919fe94..bb0001b29 100644
+--- a/package.json
++++ b/package.json
+@@ -1,5 +1,9 @@
+ {
+-  "name": "react-native-reanimated",
++  "name": "@axxag/react-native-reanimated",
++  "publishConfig": {
++    "access": "restricted",
++    "registry": "https://npm.pkg.github.com/"
++  },
+   "version": "2.3.0",
+   "description": "More powerful alternative to Animated library for React Native.",
+   "scripts": {
+@@ -19,7 +23,7 @@
+     "release": "npm login && release-it",
+     "type:check": "yarn tsc --noEmit",
+     "type:generate": "yarn type:generate:clean && yarn type:generate:cp-js-src && yarn type:generate:tsc && yarn type:generate:remove.ts && yarn type:generate:remove.tsx",
+-    "type:generate:clean": "rm -rf lib/ && mkdir lib/",
++    "type:generate:clean": "rm -rf lib/",
+     "type:generate:cp-js-src": "cp -RL src/ lib/",
+     "type:generate:tsc": "yarn tsc",
+     "type:generate:remove.ts": "find ./lib -type f -name \"*.ts\" -and -not -name \"*.d.ts\" -delete",
+@@ -55,7 +59,7 @@
+   ],
+   "repository": {
+     "type": "git",
+-    "url": "git+https://github.com/software-mansion/react-native-reanimated.git"
++    "url": "git+https://github.com/axxag/react-native-reanimated.git"
+   },
+   "author": {
+     "email": "krzys.magiera@gmail.com",
+@@ -116,7 +120,7 @@
+     "lint-staged": "^11.2.0",
+     "prettier": "^2.2.1",
+     "react": "17.0.2",
+-    "react-native": "0.67.0-rc.4",
++    "react-native": "0.67.0-rc.5",
+     "react-native-codegen": "^0.0.7",
+     "react-native-gesture-handler": "^1.6.1",
+     "react-test-renderer": "17.0.2",
