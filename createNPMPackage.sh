@@ -6,11 +6,11 @@ ROOT=$(pwd)
 
 unset CI
 
-versions=("0.67.0-rc.5" "0.66.3")
-version_name=("67" "66")
-rnv8_versions=("0.66.3-patch.1" "0.66.3-patch.1")
+versions=("0.67.0-rc.6")
+version_name=("67")
+rnv8_versions=("0.67.0-patch.0")
 
-for index in {0..1};
+for index in {0..0};
 do
   yarn add react-native@"${versions[$index]}"
   for js_runtime in "jsc" "v8"
@@ -18,7 +18,7 @@ do
     echo "js_runtime=${js_runtime}"
 
     if [ "${js_runtime}" == "v8" ]; then
-      yarn add react-native-v8@"${rnv8_versions[$index]}"
+      yarn add react-native-v8@"npm:@axxag/react-native-v8@${rnv8_versions[$index]}"
       sed -i 's/jsi\/v8runtime/v8runtime/g' node_modules/react-native-v8/src/v8runtime/V8RuntimeFactory.h
     fi
 
@@ -81,7 +81,7 @@ rm -r $(find . ! -name '.' ! -name 'jni' -maxdepth 1)
 rm $(find . -name '*libc++_shared.so')
 cd ../..
 
-yarn add react-native@0.67.0-rc.5 --dev
+yarn add react-native@0.67.0-rc.6 --dev
 
 mv android android-temp
 mv android-npm android

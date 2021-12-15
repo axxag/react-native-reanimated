@@ -9052,10 +9052,10 @@ react-native-screens@^3.4.0:
   dependencies:
     warn-once "^0.1.0"
 
-react-native@0.67.0-rc.5:
-  version "0.67.0-rc.5"
-  resolved "https://registry.yarnpkg.com/react-native/-/react-native-0.67.0-rc.5.tgz#31f80083f705339e00b689404a5902515a0d6fe8"
-  integrity sha512-4NWwwrx2hhviXlAXy39ULJoinlv1Pl4nF1YDWSPNcu46EAakg7SUFkcZbaJugMyw2wjq7qUG3d2YJdn9IZI1Dg==
+react-native@0.67.0-rc.6:
+  version "0.67.0-rc.6"
+  resolved "https://registry.yarnpkg.com/react-native/-/react-native-0.67.0-rc.6.tgz#d5005dca9ea2d7578080e768eb2ce5da8f68a20c"
+  integrity sha512-qAHIM0Hp2lQLIbJBj6P4En5W9YT2v8Z1zsIa5A771DJY7H6ch4i9EDMf6Yhczc+Y95fq2p9YFOwgMf3R8jm59Q==
   dependencies:
     "@jest/create-cache-key-function" "^27.0.1"
     "@react-native-community/cli" "^6.0.0"
