@@ -1,5 +1,4 @@
 #include <fbjni/fbjni.h>
-#include <jsi/JSIDynamic.h>
 #include <jsi/jsi.h>
 #include <react/jni/ReadableNativeArray.h>
 #include <react/jni/ReadableNativeMap.h>
