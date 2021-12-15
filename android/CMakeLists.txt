@@ -9,13 +9,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
 set (PACKAGE_NAME "reanimated")
 set (BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
-set (FBJNI_HEADERS_DIR ${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/first-party/fbjni/headers)
+set (SOURCES_DIR ${CMAKE_SOURCE_DIR}/../Common/cpp)
 
 # reanimated shared
 
-file(GLOB sources_native_modules  "./src/main/Common/cpp/NativeModules/*.cpp")
-file(GLOB sources_shared_items  "./src/main/Common/cpp/SharedItems/*.cpp")
-file(GLOB sources_registries  "./src/main/Common/cpp/Registries/*.cpp")
+file(GLOB sources_native_modules  "${SOURCES_DIR}/NativeModules/*.cpp")
+file(GLOB sources_shared_items  "${SOURCES_DIR}/SharedItems/*.cpp")
+file(GLOB sources_registries  "${SOURCES_DIR}/Registries/*.cpp")
 file(GLOB sources_android  "./src/main/cpp/*.cpp")
 
 add_library(
@@ -26,17 +26,17 @@ add_library(
         ${sources_registries}
         ${sources_android}
         "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi/jsi/JSIDynamic.cpp"
-        "./src/main/Common/cpp/Tools/JSIStoreValueUser.cpp"
-        "./src/main/Common/cpp/Tools/Mapper.cpp"
-        "./src/main/Common/cpp/Tools/RuntimeDecorator.cpp"
-        "./src/main/Common/cpp/Tools/Scheduler.cpp"
-        "./src/main/Common/cpp/Tools/WorkletEventHandler.cpp"
-        "./src/main/Common/cpp/Tools/FeaturesConfig.cpp"
-        "./src/main/Common/cpp/LayoutAnimations/LayoutAnimationsProxy.cpp"
+        "${SOURCES_DIR}/Tools/JSIStoreValueUser.cpp"
+        "${SOURCES_DIR}/Tools/Mapper.cpp"
+        "${SOURCES_DIR}/Tools/RuntimeDecorator.cpp"
+        "${SOURCES_DIR}/Tools/Scheduler.cpp"
+        "${SOURCES_DIR}/Tools/WorkletEventHandler.cpp"
+        "${SOURCES_DIR}/Tools/FeaturesConfig.cpp"
+        "${SOURCES_DIR}/LayoutAnimations/LayoutAnimationsProxy.cpp"
 )
 
 
-file (GLOB LIBFBJNI_INCLUDE_DIR ${FBJNI_HEADERS_DIR})
+file (GLOB LIBFBJNI_INCLUDE_DIR "${BUILD_DIR}/fbjni-*-headers.jar/")
 
 target_include_directories(
         ${PACKAGE_NAME}
@@ -55,13 +55,13 @@ target_include_directories(
         "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
         "${NODE_MODULES_DIR}/react-native/ReactCommon/turbomodule/core"
         "${NODE_MODULES_DIR}/react-native/ReactCommon/turbomodule"
-        "./src/main/Common/cpp/headers/Tools"
-        "./src/main/Common/cpp/headers/SpecTools"
-        "./src/main/Common/cpp/headers/NativeModules"
-        "./src/main/Common/cpp/headers/SharedItems"
-        "./src/main/Common/cpp/headers/Registries"
-        "./src/main/Common/cpp/headers/LayoutAnimations"
-        "./src/main/Common/cpp/hidden_headers"
+        "${SOURCES_DIR}/headers/Tools"
+        "${SOURCES_DIR}/headers/SpecTools"
+        "${SOURCES_DIR}/headers/NativeModules"
+        "${SOURCES_DIR}/headers/SharedItems"
+        "${SOURCES_DIR}/headers/Registries"
+        "${SOURCES_DIR}/headers/LayoutAnimations"
+        "${SOURCES_DIR}/hidden_headers"
         "./src/main/cpp/headers"
 )
 
@@ -73,6 +73,12 @@ file (GLOB HERMES_DIR "${BUILD_DIR}/third-party-ndk/hermes/jni/${ANDROID_ABI}")
 find_library(
         LOG_LIB
         log
+)
+find_library(
+        FBJNI_LIB
+        fbjni
+        PATHS ${LIBRN_DIR}
+        NO_CMAKE_FIND_ROOT_PATH
 )
 find_library(
         HERMES_LIB
@@ -111,7 +117,6 @@ find_library(
         PATHS ${LIBRN_DIR}
         NO_CMAKE_FIND_ROOT_PATH
 )
-find_package(fbjni REQUIRED CONFIG)
 
 find_library(
         JSI_LIB
@@ -120,9 +125,9 @@ find_library(
         NO_CMAKE_FIND_ROOT_PATH
 )
 
-
 # build shared lib
 
+message(WARNING "CMakeLists.txt JS_RUNTIME=${JS_RUNTIME}")
 
 if(${JS_RUNTIME} STREQUAL "hermes")
         target_link_libraries( 
@@ -131,9 +136,9 @@ if(${JS_RUNTIME} STREQUAL "hermes")
                 ${JSI_LIB}
                 ${HERMES_LIB}
                 ${GLOG_LIB}
-                fbjni::fbjni
                 ${FOLLY_JSON_LIB}
                 ${REACT_NATIVE_JNI_LIB}
+                ${FBJNI_LIB}
                 android
         )
     string(APPEND CMAKE_CXX_FLAGS " -DJS_RUNTIME_HERMES=1")
@@ -144,9 +149,9 @@ elseif(${JS_RUNTIME} STREQUAL "v8")
                 ${JSI_LIB}
                 ${V8EXECUTOR_LIB}
                 ${GLOG_LIB}
-                fbjni::fbjni
                 ${FOLLY_JSON_LIB}
                 ${REACT_NATIVE_JNI_LIB}
+                ${FBJNI_LIB}
                 android
         )
         target_include_directories(
@@ -162,9 +167,9 @@ else()
                 ${JSI_LIB}
                 ${JSEXECUTOR_LIB}
                 ${GLOG_LIB}
-                fbjni::fbjni
                 ${FOLLY_JSON_LIB}
                 ${REACT_NATIVE_JNI_LIB}
+                ${FBJNI_LIB}
                 android
         )
     string(APPEND CMAKE_CXX_FLAGS " -DJS_RUNTIME_JSC=1")
