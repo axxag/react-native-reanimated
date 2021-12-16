@@ -39,7 +39,11 @@ file (GLOB LIBFBJNI_INCLUDE_DIR "${BUILD_DIR}/fbjni-*-headers.jar/")
 
 include_directories(
         ${PACKAGE_NAME}
+        "${LIBFBJNI_INCLUDE_DIR}"
+        ${BUILD_DIR}/third-party-ndk/boost
+        ${BUILD_DIR}/third-party-ndk/double-conversion
         ${BUILD_DIR}/third-party-ndk/folly
+        ${BUILD_DIR}/third-party-ndk/glog
         "${SOURCES_DIR}/headers/Tools"
         "${SOURCES_DIR}/headers/SpecTools"
         "${SOURCES_DIR}/headers/NativeModules"
@@ -47,14 +51,22 @@ include_directories(
         "${SOURCES_DIR}/headers/Registries"
         "${SOURCES_DIR}/headers/LayoutAnimations"
         "${SOURCES_DIR}/hidden_headers"
-        "./src/main/cpp/headers"
+        "${NODE_MODULES_DIR}/hermes-engine/android/include/"
         "${NODE_MODULES_DIR}/react-native/React"
         "${NODE_MODULES_DIR}/react-native/React/Base"
+        "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/java/com/facebook/react/turbomodule/core/jni"
+        "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni"
+        "${NODE_MODULES_DIR}/react-native/ReactCommon"
+        "${NODE_MODULES_DIR}/react-native/ReactCommon/callinvoker"
         "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
+        "${NODE_MODULES_DIR}/react-native/ReactCommon/turbomodule"
+        "${NODE_MODULES_DIR}/react-native/ReactCommon/turbomodule/core"
+        "./src/main/cpp/headers"
 )
 
 # find libraries
 file (GLOB LIBRN_DIR "${BUILD_DIR}/react-native-0*/jni/${ANDROID_ABI}")
+file (GLOB HERMES_DIR "${BUILD_DIR}/third-party-ndk/hermes/jni/${ANDROID_ABI}")
 
 
 find_library(
