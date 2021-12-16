@@ -25,7 +25,6 @@ add_library(
         ${sources_shared_items}
         ${sources_registries}
         ${sources_android}
-        "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi/jsi/JSIDynamic.cpp"
         "${SOURCES_DIR}/Tools/JSIStoreValueUser.cpp"
         "${SOURCES_DIR}/Tools/Mapper.cpp"
         "${SOURCES_DIR}/Tools/RuntimeDecorator.cpp"
@@ -38,23 +37,9 @@ add_library(
 
 file (GLOB LIBFBJNI_INCLUDE_DIR "${BUILD_DIR}/fbjni-*-headers.jar/")
 
-target_include_directories(
+include_directories(
         ${PACKAGE_NAME}
-        PRIVATE
-        ${LIBFBJNI_INCLUDE_DIR}
-        ${BUILD_DIR}/third-party-ndk/boost
-        ${BUILD_DIR}/third-party-ndk/double-conversion
         ${BUILD_DIR}/third-party-ndk/folly
-        "${BUILD_DIR}/third-party-ndk/glog/exported"
-        "${NODE_MODULES_DIR}/react-native/React"
-        "${NODE_MODULES_DIR}/react-native/React/Base"
-        "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni"
-        "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/java/com/facebook/react/turbomodule/core/jni"
-        "${NODE_MODULES_DIR}/react-native/ReactCommon"
-        "${NODE_MODULES_DIR}/react-native/ReactCommon/callinvoker"
-        "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
-        "${NODE_MODULES_DIR}/react-native/ReactCommon/turbomodule/core"
-        "${NODE_MODULES_DIR}/react-native/ReactCommon/turbomodule"
         "${SOURCES_DIR}/headers/Tools"
         "${SOURCES_DIR}/headers/SpecTools"
         "${SOURCES_DIR}/headers/NativeModules"
@@ -63,11 +48,13 @@ target_include_directories(
         "${SOURCES_DIR}/headers/LayoutAnimations"
         "${SOURCES_DIR}/hidden_headers"
         "./src/main/cpp/headers"
+        "${NODE_MODULES_DIR}/react-native/React"
+        "${NODE_MODULES_DIR}/react-native/React/Base"
+        "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
 )
 
 # find libraries
 file (GLOB LIBRN_DIR "${BUILD_DIR}/react-native-0*/jni/${ANDROID_ABI}")
-file (GLOB HERMES_DIR "${BUILD_DIR}/third-party-ndk/hermes/jni/${ANDROID_ABI}")
 
 
 find_library(
@@ -84,12 +71,6 @@ find_library(
         HERMES_LIB
         hermes
         PATHS ${HERMES_DIR}
-        NO_CMAKE_FIND_ROOT_PATH
-)
-find_library(
-        V8EXECUTOR_LIB
-        v8executor
-        PATHS ${LIBRN_DIR}
         NO_CMAKE_FIND_ROOT_PATH
 )
 find_library(
@@ -143,6 +124,12 @@ if(${JS_RUNTIME} STREQUAL "hermes")
         )
     string(APPEND CMAKE_CXX_FLAGS " -DJS_RUNTIME_HERMES=1")
 elseif(${JS_RUNTIME} STREQUAL "v8")
+        find_library(
+                V8EXECUTOR_LIB
+                v8executor
+                PATHS ${LIBRN_DIR}
+                NO_CMAKE_FIND_ROOT_PATH
+        )
         target_link_libraries( 
                 ${PACKAGE_NAME}
                 ${LOG_LIB}
