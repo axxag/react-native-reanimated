@@ -1,4 +1,5 @@
 import {
+  MatrixTransform,
   PerpectiveTransform,
   RotateTransform,
   RotateXTransform,
@@ -7,14 +8,14 @@ import {
   ScaleTransform,
   ScaleXTransform,
   ScaleYTransform,
-  TranslateXTransform,
-  TranslateYTransform,
   SkewXTransform,
   SkewYTransform,
-  MatrixTransform,
-  ViewStyle,
   TextStyle,
+  TranslateXTransform,
+  TranslateYTransform,
+  ViewStyle,
 } from 'react-native';
+
 import { Animation, AnimationObject } from './animation/commonTypes';
 import { Context } from './hook/commonTypes';
 
@@ -57,6 +58,10 @@ export interface WorkletFunction {
 
 export interface BasicWorkletFunction<T> extends WorkletFunction {
   (): T;
+}
+
+export interface BasicWorkletFunctionOptional<T> extends WorkletFunction {
+  (): Partial<T>;
 }
 
 export interface NativeEvent<T> {

@@ -27,24 +27,29 @@ rootProject.getSubprojects().forEach({project ->
 buildscript {
   repositories {
     google()
-    jcenter()
+    mavenCentral()
     maven {
       url "https://plugins.gradle.org/m2/"
     }
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:4.2.2'
-    classpath 'de.undercouch:gradle-download-task:4.1.2'
+    classpath('com.android.tools.build:gradle:4.2.2')
+    classpath("de.undercouch:gradle-download-task:4.1.2")
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:5.15.0"
   }
 }
-
-apply plugin: 'com.android.library'
-apply plugin: 'de.undercouch.download'
 
 def safeExtGet(prop, fallback) {
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
+
+if (project == rootProject) {
+    apply from: 'spotless.gradle'
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'de.undercouch.download'
 
 def found = false
 def defaultDir = null
@@ -121,7 +126,9 @@ android {
   }
 
   packagingOptions {
-    excludes = ["**/libc++_shared.so", "**/libfbjni.so", "**/libreactnativejni.so", "**/libjsi.so", "**/MANIFEST.MF"]
+    println "Native libs debug enabled: ${debugNativeLibraries}"
+    doNotStrip debugNativeLibraries ? "**/**/*.so" : ''
+    excludes = ["**/libc++_shared.so", "**/libfbjni.so", "**/libjsi.so"]
   }
 
   buildTypes {

@@ -6,7 +6,7 @@ ROOT=$(pwd)
 
 unset CI
 
-versions=("0.67.0-rc.6")
+versions=("0.67.1")
 version_name=("67")
 rnv8_versions=("0.67.0-patch.0")
 
